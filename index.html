@@ -1,0 +1,135 @@
+<!-- sidebar.html -->
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+    <title></title>
+    <link rel="stylesheet" href="css/panel.css" />
+    <link rel="stylesheet" href="css/slash.css" />
+    <link rel="stylesheet" href="css/history-panel.css" />
+    <link rel="stylesheet" href="css/prompt-manager.css" />
+  </head>
+  <body>
+    <!-- 左侧垂直导航栏 -->
+    <nav id="provider-tabs">
+      <!-- 关闭按钮 - 固定在顶部 -->
+      <button id="closeBtn" type="button" title="退出应用" class="sidebar-close-btn">✕</button>
+      <!-- Provider tabs will be dynamically generated here -->
+    </nav>
+
+    <!-- 右侧主内容区 -->
+    <main id="main-content">
+      <!-- 拖动区域 - 用于移动窗口 -->
+      <div class="drag-zone"></div>
+      <div class="hover-zone"></div>
+      <div class="toolbar">
+        <button id="starBtn" type="button" title="Star/Unstar current page">☆</button>
+        <button id="backBtn" type="button" title="Return (Esc)" style="display:none;">Return</button>
+        <button id="alignBtn" type="button" title="Send to multiple AIs (Ctrl+Shift+A)" style="display:none;">Align</button>
+        <div class="toolbar-spacer" title="拖动窗口"></div>
+        <button id="openInTab" type="button" title="Open in Chrome (Ctrl+O)">Open in Tab</button>
+        <button id="favoritesBtn" type="button" title="View favorites">Favorites</button>
+        <button id="searchBtn" type="button" title="Search in page">Search</button>
+        <button id="promptBtn" type="button" title="Open Prompt Picker (/)">Prompt</button>
+        <button id="historyBtn" type="button" title="View saved links">History</button>
+        <button id="settingsBtn" type="button" title="Settings">Settings</button>
+        <button id="toggleTopBtn" type="button" title="Window Priority: Normal">🔝</button>
+      </div>
+      <!-- Settings modal -->
+      <div id="settingsModal" class="settings-modal" style="display:none;"></div>
+      <!-- Align modal -->
+      <div id="alignModal" class="align-modal" style="display:none;"></div>
+      <!-- History Panel -->
+      <div id="historyPanel" class="history-panel-overlay">
+        <div class="history-header">
+          <h2>History</h2>
+          <button class="history-close-btn" title="Close">×</button>
+        </div>
+        <div class="history-content" id="historyList">
+          <!-- Items will be injected here -->
+        </div>
+      </div>
+      
+      <!-- Prompt Manager Panel -->
+      <div id="promptManagerPanel" class="prompt-manager-overlay" style="display:none;">
+        <div class="prompt-header">
+          <div class="prompt-header-top">
+            <h2>Prompt Manager</h2>
+            <button class="prompt-close-btn" title="Close">×</button>
+          </div>
+          <div class="prompt-toolbar">
+            <div class="prompt-mode-group">
+              <button id="promptModeBtn" class="pm-btn">Mode <span id="currentModeLabel">All</span> ▼</button>
+              <div id="promptModeDropdown" class="pm-dropdown" style="display:none;">
+                <div class="pm-dropdown-input-row">
+                  <input type="text" id="newModeInput" placeholder="Mode name (≤10)" maxlength="10">
+                  <button id="addModeBtn">Add</button>
+                </div>
+                <ul id="modeList"></ul>
+              </div>
+            </div>
+            <button id="promptExportBtn" class="pm-btn">Export</button>
+            <button id="promptImportBtn" class="pm-btn">Import</button>
+          </div>
+          <div class="prompt-search-row">
+            <input type="text" id="promptSearchInput" placeholder="Search prompts...">
+          </div>
+        </div>
+        <div class="prompt-content" id="promptList">
+          <!-- Items injected here -->
+        </div>
+        <button id="addPromptFab" class="fab-btn" title="Add Prompt">+</button>
+      </div>
+
+      <!-- Edit Prompt Modal -->
+      <div id="editPromptModal" class="modal-overlay" style="display:none;">
+        <div class="modal-box">
+          <h3>Edit Prompt(s)</h3>
+          <div style="font-size:12px;color:#666;margin-bottom:8px;">
+            Format: Title (1st line), Content (following lines). Separate multiple prompts with blank lines.
+          </div>
+          <textarea id="editPromptContent" placeholder="Title
+Content...
+
+Title 2
+Content 2..." style="height:300px;"></textarea>
+          <div class="modal-actions">
+            <button id="cancelEditPrompt">Cancel</button>
+            <button id="saveEditPrompt" class="primary-btn">Save</button>
+          </div>
+        </div>
+      </div>
+      <!-- 地址栏 - 仅在分屏模式下显示 -->
+      <div id="addressBar" class="address-bar" style="display:none;">
+        <div class="address-bar-wrapper">
+          <input type="text" id="addressInput" placeholder="输入网址或搜索内容..." />
+          <button id="tabLockRight" type="button" title="锁定 Tab 到右侧">Lock ▶︎</button>
+          <button id="addressGo" type="button" title="前往">前往</button>
+        </div>
+      </div>
+      <!-- 第三屏地址栏 - 三分屏时显示，功能与中间一致（控制第三屏） -->
+      <div id="addressBarThird" class="address-bar" style="display:none;">
+        <div class="address-bar-wrapper">
+          <input type="text" id="addressInputThird" placeholder="第三屏：输入网址或搜索内容..." />
+          <button id="tabLockThird" type="button" title="锁定 Tab 到第三屏">Lock ▶︎</button>
+          <button id="addressGoThird" type="button" title="前往第三屏">前往</button>
+        </div>
+      </div>
+      <div id="iframe"></div>
+      <!-- 第三屏容器 -->
+      <div id="thirdScreen" style="display:none;"></div>
+      <!-- 分屏分割线指示器 -->
+      <div id="splitDivider" class="split-divider" style="display:none;"></div>
+      <!-- 第三屏分割线指示器 -->
+      <div id="thirdDivider" class="split-divider" style="display:none;"></div>
+    </main>
+    <!-- Electron 适配器 - 必须在其他脚本之前加载 -->
+    <script src="electron-adapter.js"></script>
+    <script src="js/utils.js"></script>
+    <script src="js/history-db.js"></script>
+    <script src="js/prompt-db.js"></script>
+    <script src="js/prompt-manager.js"></script>
+    <script src="js/popup.js"></script>
+  </body>
+</html>

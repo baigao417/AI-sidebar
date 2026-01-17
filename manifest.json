@@ -1,0 +1,140 @@
+{
+  "manifest_version": 3,
+  "name": " ",
+  "version": "0.0.1",
+  "description": "A Chrome extension that brings ChatGPT, Perplexity, and Gemini to your browser side panel",
+  "permissions": [
+    "sidePanel",
+    "declarativeNetRequest",
+    "declarativeNetRequestWithHostAccess",
+    "tabs",
+    "activeTab",
+    "storage",
+    "cookies",
+    "identity",
+    "scripting",
+    "contextMenus"
+  ],
+  "optional_host_permissions": [
+    "https://*/*",
+    "http://*/*"
+  ],
+  "background": {
+    "service_worker": "js/background.js"
+  },
+  "icons": {
+    "16": "images/icon16.png",
+    "48": "images/icon48.png",
+    "128": "images/icon128.png"
+  },
+  "side_panel": {
+    "default_path": "index.html"
+  },
+  "action": {
+    "default_title": ""
+  },
+  "host_permissions": [
+    "https://chatgpt.com/*",
+    "https://*.perplexity.ai/*",
+    "https://www.perplexity.ai/*",
+    "https://perplexity.ai/*",
+    "https://*.genspark.ai/*",
+    "https://www.genspark.ai/*",
+    "https://genspark.ai/*",
+    "https://*.tongyi.com/*",
+    "https://www.tongyi.com/*",
+    "https://tongyi.com/*",
+    "https://*.doubao.com/*",
+    "https://www.doubao.com/*",
+    "https://doubao.com/*",
+    "https://gemini.google.com/*",
+    "https://aistudio.google.com/*",
+    "https://accounts.google.com/*",
+    "https://www.google.com/*",
+    "https://claude.ai/*",
+    "https://chat.deepseek.com/*",
+    "https://*.deepseek.com/*",
+    "https://deepseek.com/*",
+    "https://notebooklm.google.com/*",
+    "https://ima.qq.com/*",
+    "https://*.ptlogin2.qq.com/*",
+    "https://ssl.ptlogin2.qq.com/*",
+    "https://xui.ptlogin2.qq.com/*",
+    "https://grok.com/*",
+    "https://mubu.com/*",
+    "https://*.mubu.com/*",
+    "https://excalidraw.com/*",
+    "https://kimi.moonshot.cn/*",
+    "https://*.moonshot.cn/*"
+  ],
+
+  "content_scripts": [
+    {
+      "matches": [
+        "https://chatgpt.com/*",
+        "https://*.perplexity.ai/*",
+        "https://www.perplexity.ai/*",
+        "https://perplexity.ai/*",
+        "https://*.genspark.ai/*",
+        "https://www.genspark.ai/*",
+        "https://genspark.ai/*",
+        "https://*.tongyi.com/*",
+        "https://www.tongyi.com/*",
+        "https://tongyi.com/*",
+        "https://*.doubao.com/*",
+        "https://www.doubao.com/*",
+        "https://doubao.com/*",
+        "https://gemini.google.com/*",
+        "https://aistudio.google.com/*",
+        "https://accounts.google.com/*",
+        "https://www.google.com/*",
+        "https://claude.ai/*",
+        "https://chat.deepseek.com/*",
+        "https://*.deepseek.com/*",
+        "https://deepseek.com/*",
+        "https://notebooklm.google.com/*",
+        "https://ima.qq.com/*",
+        "https://*.ptlogin2.qq.com/*",
+        "https://ssl.ptlogin2.qq.com/*",
+        "https://xui.ptlogin2.qq.com/*",
+        "https://grok.com/*",
+        "https://mubu.com/*",
+        "https://*.mubu.com/*",
+        "https://excalidraw.com/*",
+        "https://kimi.moonshot.cn/*",
+        "https://*.moonshot.cn/*"
+      ],
+      "all_frames": true,
+      "run_at": "document_end",
+      "js": [
+        "content-scripts/url-sync.js"
+      ]
+    }
+  ],
+
+  "declarative_net_request": {
+    "rule_resources": [
+      {
+        "id": "bypass_headers",
+        "enabled": true,
+        "path": "rules/bypass-headers.json"
+      }
+    ]
+  },
+  "commands": {
+    "aisb-send-selection": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+Y",
+        "mac": "Command+Shift+Y"
+      },
+      "description": "Send selected text to AI sidebar"
+    },
+    "aisb-capture-screenshot": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+K",
+        "mac": "Command+Shift+K"
+      },
+      "description": "Capture current tab screenshot to side panel"
+    }
+  }
+}

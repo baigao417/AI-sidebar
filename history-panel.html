@@ -1,0 +1,796 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>History Panel</title>
+  <style>
+    :root {
+      --bg-color: #ffffff;
+      --text-color: #333333;
+      --border-color: #e0e0e0;
+      --hover-bg: #f5f5f5;
+      --accent-color: #1a73e8;
+      --danger-color: #d32f2f;
+      --secondary-text: #666666;
+      --folder-bg: #f8f9fa;
+      --folder-hover: #e8f0fe;
+      --timeline-dot: #D7DCE4;
+      --timeline-active: #5684D1;
+      --timeline-line: #e0e0e0;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg-color: #202124;
+        --text-color: #e8eaed;
+        --border-color: #3c4043;
+        --hover-bg: #303134;
+        --accent-color: #8ab4f8;
+        --danger-color: #f28b82;
+        --secondary-text: #9aa0a6;
+        --folder-bg: #292a2d;
+        --folder-hover: #3c4043;
+        --timeline-dot: #5f6368;
+        --timeline-active: #8ab4f8;
+        --timeline-line: #3c4043;
+      }
+    }
+    
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background-color: var(--bg-color);
+      color: var(--text-color);
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* Layout: Left Sidebar (Folders) + Main Content (List) + Right Timeline */
+    .container {
+      display: flex;
+      flex: 1;
+      height: 100%;
+      overflow: hidden;
+    }
+    
+    /* --- Folder Sidebar --- */
+    .folder-sidebar {
+      width: 200px;
+      border-right: 1px solid var(--border-color);
+      display: flex;
+      flex-direction: column;
+      background-color: var(--folder-bg);
+      flex-shrink: 0;
+    }
+    .folder-header {
+      padding: 12px;
+      font-weight: 600;
+      font-size: 13px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid var(--border-color);
+    }
+    .folder-add-btn {
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: var(--accent-color);
+      padding: 4px;
+      border-radius: 4px;
+    }
+    .folder-add-btn:hover { background-color: var(--hover-bg); }
+    .folder-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 8px 0;
+    }
+    .folder-item {
+      padding: 8px 12px;
+      font-size: 13px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      color: var(--secondary-text);
+      user-select: none;
+    }
+    .folder-item:hover {
+      background-color: var(--hover-bg);
+      color: var(--text-color);
+    }
+    .folder-item.active {
+      background-color: var(--folder-hover);
+      color: var(--accent-color);
+      font-weight: 500;
+    }
+    .folder-item.drag-over {
+      border: 2px dashed var(--accent-color);
+    }
+    .folder-icon { margin-right: 8px; width: 16px; text-align: center; }
+    .folder-name { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .folder-count { font-size: 11px; opacity: 0.7; margin-left: 4px; }
+    .folder-actions { display: none; margin-left: 4px; }
+    .folder-item:hover .folder-actions { display: flex; }
+    .folder-action-btn {
+      background: none;
+      border: none;
+      padding: 2px;
+      color: var(--secondary-text);
+      cursor: pointer;
+      opacity: 0.6;
+    }
+    .folder-action-btn:hover { opacity: 1; color: var(--text-color); }
+
+    /* --- Main Content --- */
+    .main-content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-width: 0; /* fix flex text overflow */
+      position: relative;
+    }
+    
+    .toolbar {
+      padding: 10px;
+      display: flex;
+      gap: 8px;
+      border-bottom: 1px solid var(--border-color);
+      align-items: center;
+      background-color: var(--bg-color);
+      flex-shrink: 0;
+    }
+    .toolbar-btn {
+      padding: 6px 12px;
+      border-radius: 4px;
+      border: 1px solid var(--border-color);
+      background: var(--bg-color);
+      color: var(--text-color);
+      cursor: pointer;
+      font-size: 12px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .toolbar-btn:hover { background-color: var(--hover-bg); }
+    .toolbar-btn.primary {
+      background-color: var(--accent-color);
+      color: white;
+      border-color: var(--accent-color);
+    }
+    .toolbar-btn.primary:hover { opacity: 0.9; }
+    .toolbar-spacer { flex: 1; }
+    .close-btn {
+      background: none;
+      border: none;
+      color: var(--secondary-text);
+      cursor: pointer;
+      padding: 4px;
+      border-radius: 4px;
+    }
+    .close-btn:hover { background-color: var(--hover-bg); color: var(--text-color); }
+    .close-btn svg { width: 18px; height: 18px; }
+
+    .search-bar {
+      padding: 10px;
+      border-bottom: 1px solid var(--border-color);
+      background-color: var(--bg-color);
+      flex-shrink: 0;
+    }
+    .search-input {
+      width: 100%;
+      padding: 8px 12px;
+      border-radius: 6px;
+      border: 1px solid var(--border-color);
+      background-color: var(--bg-color);
+      color: var(--text-color);
+      font-size: 13px;
+      outline: none;
+    }
+    .search-input:focus { border-color: var(--accent-color); }
+
+    /* History List */
+    .history-list-container {
+      flex: 1;
+      overflow-y: auto;
+      padding: 0;
+      scroll-behavior: smooth;
+    }
+    
+    /* Timeline Grouping */
+    .time-group {
+      margin-bottom: 16px;
+    }
+    .time-group-header {
+      position: sticky;
+      top: 0;
+      background-color: var(--bg-color);
+      padding: 8px 16px;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--secondary-text);
+      z-index: 10;
+      border-bottom: 1px solid var(--border-color);
+      opacity: 0.95;
+    }
+    
+    .history-item {
+      padding: 10px 16px;
+      border-bottom: 1px solid var(--border-color);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      transition: background-color 0.2s;
+    }
+    .history-item:hover { background-color: var(--hover-bg); }
+    .history-item.active { background-color: var(--hover-bg); border-left: 3px solid var(--accent-color); }
+    
+    .item-info { flex: 1; min-width: 0; padding-right: 10px; }
+    .item-header { display: flex; align-items: center; margin-bottom: 4px; gap: 6px; }
+    .provider-tag {
+      font-size: 10px;
+      padding: 2px 6px;
+      border-radius: 4px;
+      background-color: #eee;
+      color: #555;
+      font-weight: 500;
+      text-transform: capitalize;
+    }
+    .item-time { font-size: 11px; color: var(--secondary-text); }
+    .item-title {
+      font-size: 13px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      color: var(--text-color);
+    }
+    
+    .item-actions { display: none; align-items: center; gap: 4px; }
+    .history-item:hover .item-actions { display: flex; }
+    .action-btn {
+      background: none;
+      border: none;
+      color: var(--secondary-text);
+      cursor: pointer;
+      padding: 4px;
+      border-radius: 4px;
+    }
+    .action-btn:hover { background-color: rgba(0,0,0,0.05); color: var(--text-color); }
+    .action-btn.star:hover { color: #fbc02d; }
+    .action-btn.star.active { color: #fbc02d; fill: #fbc02d; }
+    .action-btn.delete:hover { color: var(--danger-color); }
+    .action-btn svg { width: 14px; height: 14px; }
+    
+    /* Drag & Drop Visuals */
+    .history-item[draggable="true"] { cursor: grab; }
+    
+    /* --- Right Timeline Bar --- */
+    .timeline-bar {
+      width: 24px;
+      background: transparent;
+      border-left: 1px solid transparent;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 10px 0;
+      position: absolute;
+      right: 0;
+      top: 0;
+      bottom: 0;
+      z-index: 20;
+    }
+    .timeline-bar:hover {
+      background: rgba(128, 128, 128, 0.05);
+      border-left: 1px solid var(--border-color);
+    }
+    .timeline-track {
+      width: 100%;
+      height: 100%;
+      position: relative;
+    }
+    .t-dot {
+      position: absolute;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background-color: var(--timeline-dot);
+      cursor: pointer;
+      transition: transform 0.1s, background-color 0.1s;
+    }
+    .t-dot:hover {
+      transform: translate(-50%, -50%) scale(1.5);
+      background-color: var(--accent-color);
+    }
+    .t-dot.active {
+      background-color: var(--timeline-active);
+      box-shadow: 0 0 0 2px var(--bg-color), 0 0 0 4px var(--timeline-active);
+    }
+    
+    /* Tooltip */
+    .timeline-tooltip {
+      position: fixed;
+      background: var(--text-color);
+      color: var(--bg-color);
+      padding: 6px 10px;
+      border-radius: 6px;
+      font-size: 11px;
+      pointer-events: none;
+      opacity: 0;
+      transform: translateX(10px);
+      transition: opacity 0.15s, transform 0.15s;
+      white-space: nowrap;
+      z-index: 1000;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      max-width: 200px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .timeline-tooltip.visible {
+      opacity: 1;
+      transform: translateX(0);
+    }
+
+    /* Context Menu */
+    .context-menu {
+      position: fixed;
+      background: var(--bg-color);
+      border: 1px solid var(--border-color);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      border-radius: 6px;
+      padding: 4px 0;
+      min-width: 140px;
+      z-index: 2000;
+      display: none;
+    }
+    .menu-item {
+      padding: 8px 16px;
+      font-size: 13px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .menu-item:hover { background-color: var(--hover-bg); }
+    .menu-divider { height: 1px; background-color: var(--border-color); margin: 4px 0; }
+    
+    /* Empty State */
+    .empty-state {
+      padding: 40px 20px;
+      text-align: center;
+      color: var(--secondary-text);
+      font-size: 14px;
+    }
+    .empty-state svg { width: 48px; height: 48px; margin-bottom: 12px; opacity: 0.5; }
+
+    /* Provider Colors */
+    .provider-tag.chatgpt { background: #74aa9c; color: #fff; }
+    .provider-tag.claude { background: #d97757; color: #fff; }
+    .provider-tag.gemini { background: #4e86f7; color: #fff; }
+    .provider-tag.deepseek { background: #4d6bfe; color: #fff; }
+    .provider-tag.perplexity { background: #3fa298; color: #fff; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- Left Sidebar: Folders -->
+    <div class="folder-sidebar" id="folderSidebar">
+      <div class="folder-header">
+        <span>Folders</span>
+        <button class="folder-add-btn" id="addFolderBtn" title="New Folder">+</button>
+      </div>
+      <div class="folder-list" id="folderList">
+        <!-- Injected via JS -->
+      </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="main-content">
+      <div class="toolbar">
+        <button class="toolbar-btn primary" id="addCurrentBtn" title="Add Current Page">+ Current</button>
+        <button class="toolbar-btn danger" id="clearAllBtn" title="Clear All" style="color:var(--danger-color);">Clear</button>
+        <div class="toolbar-spacer"></div>
+        <button class="toolbar-btn" id="exportBtn" title="Export">Export</button>
+        <button class="toolbar-btn" id="importBtn" title="Import">Import</button>
+        <button class="close-btn" id="closeBtn" title="Close (Esc)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+
+      <div class="search-bar">
+        <input type="text" class="search-input" id="searchInput" placeholder="Search history...">
+      </div>
+
+      <div class="history-list-container" id="historyScrollContainer">
+        <div id="historyListContent">
+          <!-- Time Groups Injected via JS -->
+        </div>
+      </div>
+      
+      <!-- Right Timeline -->
+      <div class="timeline-bar" id="timelineBar">
+        <div class="timeline-track" id="timelineTrack"></div>
+      </div>
+    </div>
+  </div>
+  
+  <div class="timeline-tooltip" id="timelineTooltip"></div>
+  <div class="context-menu" id="contextMenu"></div>
+
+  <script src="js/history-db.js"></script>
+  <script>
+    const { ipcRenderer } = require('electron');
+    
+    // UI Elements
+    const folderListEl = document.getElementById('folderList');
+    const historyContainer = document.getElementById('historyScrollContainer');
+    const historyContent = document.getElementById('historyListContent');
+    const timelineTrack = document.getElementById('timelineTrack');
+    const tooltip = document.getElementById('timelineTooltip');
+    const searchInput = document.getElementById('searchInput');
+    const contextMenu = document.getElementById('contextMenu');
+
+    // State
+    let allHistory = [];
+    let folders = [];
+    let currentFolderId = 'all'; // 'all', 'unfiled', or folderId
+    let searchQuery = '';
+    let displayedItems = []; // currently rendered items (flattened)
+
+    // Icons
+    const ICONS = {
+      folder: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>',
+      inbox: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"></polyline><path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"></path></svg>',
+      all: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>',
+      edit: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>',
+      trash: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>'
+    };
+
+    // --- Initialization ---
+    (async () => {
+      await loadData();
+      renderFolders();
+      renderHistory();
+      
+      // Auto-focus search on open
+      setTimeout(() => searchInput.focus(), 50);
+    })();
+
+    async function loadData() {
+      if (window.HistoryDB) {
+        allHistory = await window.HistoryDB.getAll();
+        folders = await window.HistoryDB.getFolders();
+      }
+    }
+
+    // --- Folders UI ---
+    function renderFolders() {
+      const createItem = (id, name, icon, count, isSystem = false) => {
+        const div = document.createElement('div');
+        div.className = `folder-item ${currentFolderId === id ? 'active' : ''}`;
+        div.dataset.id = id;
+        
+        // Drop target logic
+        div.addEventListener('dragover', e => {
+          e.preventDefault();
+          div.classList.add('drag-over');
+        });
+        div.addEventListener('dragleave', () => div.classList.remove('drag-over'));
+        div.addEventListener('drop', async e => {
+          e.preventDefault();
+          div.classList.remove('drag-over');
+          const url = e.dataTransfer.getData('text/plain');
+          if (url && window.HistoryDB) {
+            // Move item to this folder
+            const targetFolder = (id === 'all' || id === 'unfiled') ? null : id;
+            await window.HistoryDB.moveToFolder(url, targetFolder);
+            await loadData();
+            renderHistory();
+            renderFolders(); // update counts
+          }
+        });
+
+        div.onclick = () => {
+          currentFolderId = id;
+          renderFolders();
+          renderHistory();
+        };
+
+        let actions = '';
+        if (!isSystem) {
+          actions = `
+            <div class="folder-actions">
+              <button class="folder-action-btn edit" title="Rename">${ICONS.edit}</button>
+              <button class="folder-action-btn trash" title="Delete">${ICONS.trash}</button>
+            </div>
+          `;
+        }
+
+        div.innerHTML = `
+          <div class="folder-icon">${icon}</div>
+          <span class="folder-name" title="${name}">${name}</span>
+          <span class="folder-count">${count}</span>
+          ${actions}
+        `;
+
+        if (!isSystem) {
+          div.querySelector('.edit').onclick = (e) => {
+            e.stopPropagation();
+            const newName = prompt('Rename folder:', name);
+            if (newName && newName !== name) {
+              window.HistoryDB.updateFolder(id, newName).then(() => { loadData().then(renderFolders); });
+            }
+          };
+          div.querySelector('.trash').onclick = (e) => {
+            e.stopPropagation();
+            if (confirm(`Delete folder "${name}"? Items inside will be moved to Unfiled.`)) {
+              window.HistoryDB.deleteFolder(id).then(() => {
+                if (currentFolderId === id) currentFolderId = 'all';
+                loadData().then(() => { renderFolders(); renderHistory(); });
+              });
+            }
+          };
+        }
+        return div;
+      };
+
+      folderListEl.innerHTML = '';
+      
+      // System folders
+      const allCount = allHistory.length;
+      const unfiledCount = allHistory.filter(i => !i.folderId).length;
+      
+      folderListEl.appendChild(createItem('all', 'All History', ICONS.all, allCount, true));
+      folderListEl.appendChild(createItem('unfiled', 'Unfiled', ICONS.inbox, unfiledCount, true));
+      
+      // User folders
+      const sortedFolders = folders.slice().sort((a,b) => b.createdAt - a.createdAt); // Newest top
+      sortedFolders.forEach(f => {
+        const count = allHistory.filter(i => i.folderId === f.id).length;
+        folderListEl.appendChild(createItem(f.id, f.name, ICONS.folder, count));
+      });
+    }
+
+    document.getElementById('addFolderBtn').onclick = async () => {
+      const name = prompt('New Folder Name:');
+      if (name) {
+        await window.HistoryDB.createFolder(name);
+        await loadData();
+        renderFolders();
+      }
+    };
+
+    // --- History List & Timeline ---
+    
+    function getGroupLabel(ts) {
+      const date = new Date(ts);
+      const now = new Date();
+      const diff = now - date;
+      const oneDay = 86400000;
+      
+      if (date.toDateString() === now.toDateString()) return 'Today';
+      
+      const yesterday = new Date(now - oneDay);
+      if (date.toDateString() === yesterday.toDateString()) return 'Yesterday';
+      
+      if (diff < 7 * oneDay) return 'This Week';
+      if (diff < 30 * oneDay) return 'This Month';
+      
+      return date.toLocaleDateString(undefined, { year: 'numeric', month: 'long' });
+    }
+
+    function renderHistory() {
+      // 1. Filter
+      let list = allHistory;
+      
+      // Folder filter
+      if (currentFolderId === 'unfiled') {
+        list = list.filter(i => !i.folderId);
+      } else if (currentFolderId !== 'all') {
+        list = list.filter(i => i.folderId === currentFolderId);
+      }
+
+      // Search filter
+      if (searchQuery) {
+        const q = searchQuery.toLowerCase();
+        list = list.filter(i => 
+          (i.title||'').toLowerCase().includes(q) || 
+          (i.url||'').toLowerCase().includes(q)
+        );
+      }
+
+      displayedItems = list; // For timeline mapping
+      historyContent.innerHTML = '';
+      
+      if (list.length === 0) {
+        historyContent.innerHTML = `
+          <div class="empty-state">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+            <p>No history items found</p>
+          </div>`;
+        renderTimeline([]);
+        return;
+      }
+
+      // 2. Group by time
+      const groups = {};
+      const groupOrder = [];
+      
+      list.forEach(item => {
+        const label = getGroupLabel(item.time);
+        if (!groups[label]) {
+          groups[label] = [];
+          groupOrder.push(label);
+        }
+        groups[label].push(item);
+      });
+
+      // 3. Render
+      groupOrder.forEach(label => {
+        const groupEl = document.createElement('div');
+        groupEl.className = 'time-group';
+        
+        const header = document.createElement('div');
+        header.className = 'time-group-header';
+        header.textContent = label;
+        groupEl.appendChild(header);
+
+        groups[label].forEach(item => {
+          const div = document.createElement('div');
+          div.className = `history-item ${item.starred ? 'starred' : ''}`;
+          div.id = `item-${item.id}`; // Anchor for timeline
+          div.draggable = true;
+          
+          div.ondragstart = (e) => {
+            e.dataTransfer.setData('text/plain', item.url);
+            e.dataTransfer.effectAllowed = 'move';
+          };
+          
+          const timeStr = new Date(item.time).toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' });
+          
+          div.innerHTML = `
+            <div class="item-info">
+              <div class="item-header">
+                <span class="provider-tag ${(item.provider||'').toLowerCase()}">${item.provider}</span>
+                <span class="item-time">${timeStr}</span>
+              </div>
+              <div class="item-title" title="${item.title || item.url}">${item.title || 'Untitled'}</div>
+            </div>
+            <div class="item-actions">
+              <button class="action-btn" data-action="open" title="Open"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg></button>
+              <button class="action-btn" data-action="copy" title="Copy"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"></path></svg></button>
+              <button class="action-btn" data-action="rename" title="Rename"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg></button>
+              <button class="action-btn delete" data-action="delete" title="Delete"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"></path></svg></button>
+            </div>
+          `;
+          
+          div.onclick = (e) => {
+             // Handle actions
+            const btn = e.target.closest('.action-btn');
+            if (btn) {
+              const action = btn.dataset.action;
+              if (action === 'open') ipcRenderer.send('history-panel-open', item);
+              if (action === 'copy') ipcRenderer.send('history-panel-copy', item);
+              if (action === 'rename') {
+                const t = prompt('Rename:', item.title);
+                if (t) window.HistoryDB.updateTitle(item.url, t).then(() => { loadData().then(renderHistory); });
+              }
+              if (action === 'delete') {
+                if(confirm('Delete?')) window.HistoryDB.removeByUrl(item.url).then(()=>{ loadData().then(renderFolders).then(renderHistory); });
+              }
+            } else {
+              ipcRenderer.send('history-panel-open', item);
+            }
+          };
+          
+          // Context Menu for Move to Folder
+          div.oncontextmenu = (e) => {
+            e.preventDefault();
+            showContextMenu(e.clientX, e.clientY, item);
+          };
+
+          groupEl.appendChild(div);
+        });
+        
+        historyContent.appendChild(groupEl);
+      });
+      
+      // Update timeline after rendering DOM
+      // requestAnimationFrame(() => renderTimeline(displayedItems));
+    }
+
+    // --- Timeline Rendering (Moved to in-chat content script) ---
+    // function renderTimeline(items) { ... }
+
+    // --- Context Menu ---
+    function showContextMenu(x, y, item) {
+      contextMenu.innerHTML = '';
+      contextMenu.style.display = 'block';
+      contextMenu.style.left = Math.min(x, window.innerWidth - 150) + 'px';
+      contextMenu.style.top = Math.min(y, window.innerHeight - 200) + 'px';
+
+      const label = document.createElement('div');
+      label.className = 'menu-item';
+      label.style.fontWeight = 'bold';
+      label.style.cursor = 'default';
+      label.textContent = 'Move to...';
+      label.style.borderBottom = '1px solid var(--border-color)';
+      contextMenu.appendChild(label);
+
+      const move = (fid) => {
+        window.HistoryDB.moveToFolder(item.url, fid).then(() => {
+          loadData().then(() => { renderFolders(); renderHistory(); });
+          contextMenu.style.display = 'none';
+        });
+      };
+
+      // Unfiled option
+      if (item.folderId) {
+        const div = document.createElement('div');
+        div.className = 'menu-item';
+        div.textContent = 'Unfiled (Remove from folder)';
+        div.onclick = () => move(null);
+        contextMenu.appendChild(div);
+      }
+
+      // Folder options
+      folders.forEach(f => {
+        if (f.id === item.folderId) return;
+        const div = document.createElement('div');
+        div.className = 'menu-item';
+        div.innerHTML = `${ICONS.folder} ${f.name}`;
+        div.onclick = () => move(f.id);
+        contextMenu.appendChild(div);
+      });
+      
+      const divNew = document.createElement('div');
+      divNew.className = 'menu-item';
+      divNew.innerHTML = `<span style="color:var(--accent-color)">+ New Folder</span>`;
+      divNew.onclick = async () => {
+        const name = prompt('New Folder Name:');
+        if (name) {
+          const f = await window.HistoryDB.createFolder(name);
+          move(f.id);
+        }
+      };
+      contextMenu.appendChild(divNew);
+
+      // Close handler
+      const closeMenu = () => {
+        contextMenu.style.display = 'none';
+        document.removeEventListener('click', closeMenu);
+      };
+      setTimeout(() => document.addEventListener('click', closeMenu), 0);
+    }
+
+    // --- Search & Other Events ---
+    searchInput.addEventListener('input', (e) => {
+      searchQuery = e.target.value;
+      renderHistory();
+    });
+
+    document.getElementById('addCurrentBtn').onclick = () => ipcRenderer.send('history-panel-add-current');
+    document.getElementById('clearAllBtn').onclick = () => {
+       if(confirm('Clear ALL history?')) window.HistoryDB.clearAll().then(() => { loadData().then(() => { renderFolders(); renderHistory(); }); });
+    };
+    document.getElementById('closeBtn').onclick = () => ipcRenderer.send('history-panel-close');
+    
+    // Data Sync
+    ipcRenderer.on('history-panel-data', () => loadData().then(() => { renderFolders(); renderHistory(); }));
+    ipcRenderer.on('history-panel-refresh', () => loadData().then(() => { renderFolders(); renderHistory(); }));
+    
+    // Keyboard Esc
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') ipcRenderer.send('history-panel-close');
+    });
+
+  </script>
+</body>
+</html>
