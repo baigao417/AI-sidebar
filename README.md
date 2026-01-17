@@ -1,317 +1,221 @@
+# AI 侧边栏 - 桌面应用
 
-# AI Sidebar Chrome Extension 🤖
+## 快速开始
 
-<div align="center">
-  <img src="images/icon128.png" alt="AI Sidebar Logo" width="128">
-  
-  **一个强大的 Chrome 扩展，将多个 AI 助手集成到浏览器侧边栏**
-  
-  [![Version](https://img.shields.io/badge/version-0.0.1-blue)](https://github.com)
-  [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
-  [![Chrome Web Store](https://img.shields.io/badge/Chrome-Web%20Store-4285F4)](https://chrome.google.com)
-</div>
+### 1. 安装依赖
 
-## 📋 项目概述
-
-AI Sidebar 是一个功能完整的 Chrome 扩展程序，让你无需切换标签页就能直接在浏览器侧边栏中使用多个 AI 助手。支持 ChatGPT、Claude、Gemini、Perplexity、DeepSeek、NotebookLM 等 11+ 个 AI 提供商，以及生产力工具如 Attention Tracker（专注力追踪）。
-
-## ✨ 核心功能
-
-### 🎯 AI 提供商集成
-- **ChatGPT** (OpenAI) - 多功能对话 AI
-- **Claude** (Anthropic) - 高级推理与分析
-- **Gemini** (Google) - 多模态 AI 助手
-- **Perplexity** - AI 搜索引擎
-- **DeepSeek** - 开源 AI 助手
-- **Google Search** - AI 概览与搜索增强
-- **NotebookLM** (Google) - AI 笔记助手
-- **Grok** (X/Twitter) - 实时对话 AI
-- **Genspark** - 智能搜索助手
-- **通义千问** (阿里云) - 中文 AI 助手
-- **豆包** (字节跳动) - 中文 AI 助手
-- **IMA** (QQ) - 腾讯 AI 助手
-
-### 🎨 用户界面
-- **底部导航栏** - 所有 AI 提供商图标固定在底部，支持快速切换
-- **提供商图标** - 彩色图标清晰展示各个提供商的身份
-- **折叠功能** - 可折叠的导航栏，节省面板空间
-- **拖拽排序** - 按个人偏好重新排列提供商顺序
-- **响应式设计** - 自适应各种面板尺寸
-
-### ⌨️ 键盘快捷键
-- **Tab 键** - 循环切换到下一个提供商
-- **Shift + Tab** - 切换到上一个提供商
-- **快速导航** - 无需鼠标即可切换 AI 提供商
-
-### 🔒 会话管理
-- **登录状态检查** - 自动检测登录状态，提示需要登录时的情况
-- **会话保持** - 保持登录会话状态
-- **跨域支持** - 支持多域名登录和认证流
-
-### 📌 实用工具
-- **Open in Tab** - 在新标签页中打开当前 AI 提供商
-- **智能链接更新** - 自动更新链接到最新的对话 URL
-- **历史记录追踪** - 追踪最近访问的 AI 对话链接
-- **URL 同步** - 实时同步 iframe 内容的 URL 变化
-
-### 🚀 高级功能
-- **斜杠命令提示器** - `/` 快捷命令菜单（集成 Slash-Command-Prompter）
-- **关注力追踪器** - Attention Tracker 生产力工具集成
-- **年度统计表** - 活动统计与生产力分析
-- **多计时器支持** - 同时运行多个计时器
-- **数据导入导出** - 备份和恢复使用数据
-
-### 🎯 代理与绕过
-- **请求头修改** - 移除限制性请求头以支持 iframe 嵌入
-- **DNR 规则** - 使用声明式网络请求规则绕过 CSP 和 X-Frame-Options
-- **主机权限管理** - 动态管理和请求必要的主机权限
-
-## 🏗️ 项目结构
-
-```
-AI-Sidebar/
-├── index.html                          # 侧边栏主界面
-├── manifest.json                       # Chrome 扩展配置
-├── js/
-│   ├── popup.js                       # 主应用逻辑（UI、提供商管理、事件处理）
-│   ├── background.js                  # 后台服务工作线程
-│   ├── history-db.js                  # 历史记录数据库管理
-│   └── plugins/                       # 插件系统目录
-├── css/
-│   └── panel.css                      # 样式表（布局、主题、响应式设计）
-├── content-scripts/
-│   └── url-sync.js                    # 内容脚本（URL 同步、Tab 拦截、消息桥接）
-├── images/
-│   ├── icon*.png                      # 扩展图标
-│   ├── screenshot.png                 # 预览图
-│   └── providers/                     # AI 提供商图标
-│       ├── *.png                      # 彩色图标
-│       └── dark/                      # 暗色主题图标
-├── rules/
-│   └── bypass-headers.json            # DNR 规则（绕过限制性请求头）
-├── vendor/
-│   ├── attention/                     # Attention Tracker 生产力工具
-│   │   ├── index.html                # 生产力工具界面
-│   │   ├── script.js                 # 核心逻辑
-│   │   ├── stats_functions.js        # 统计功能
-│   │   ├── supabaseClient.js         # Supabase 数据库客户端
-│   │   └── supabase/                 # 数据库迁移脚本
-│   ├── Slash-Command-Prompter/       # 斜杠命令提示器
-│   │   └── content.js                # 命令菜单逻辑
-│   └── supabase.js                   # 共享 Supabase 配置
-├── _metadata/                        # 生成的元数据和索引
-└── [文档文件]                        # 更新日志和指南
-```
-
-## 🔧 技术架构
-
-### 核心技术栈
-- **Manifest V3** - 现代 Chrome 扩展标准
-- **JavaScript (ES6+)** - 核心应用逻辑
-- **Chrome Storage API** - 本地数据持久化
-- **Chrome Declarative Net Request API** - 高效的请求头修改
-- **iframe Sandbox** - 安全的内容隔离
-- **Supabase** - 后端数据库（生产力工具）
-
-### 架构设计
-1. **后台服务工作线程** - 处理请求拦截、权限管理、消息路由
-2. **侧边栏界面** - 提供商选择、切换、历史记录管理
-3. **内容脚本** - URL 同步、键盘事件拦截、跨域通信
-4. **iframe 沙箱** - 隔离的 AI 提供商内容
-
-## 📦 核心模块
-
-### popup.js (主应用) - ~1400+ 行
-- **提供商配置** - 12+ 个 AI 提供商的完整配置
-- **UI 渲染** - 底部导航栏、提供商切换、历史记录显示
-- **事件处理** - 点击、拖拽、键盘事件
-- **会话管理** - 登录状态检查、认证处理
-- **历史记录** - URL 追踪、记录管理、复制/重命名功能
-- **拖拽排序** - 提供商顺序自定义和持久化
-
-### url-sync.js (内容脚本) - ~440+ 行
-- **URL 监控** - 实时追踪 iframe 内容 URL 变化
-- **Tab 拦截** - 截获 Tab 键事件用于提供商循环切换
-- **消息桥接** - iframe 与主窗口间的双向通信
-- **事件同步** - 历史 API、导航事件的拦截
-- **跨域支持** - 多域名的完整覆盖
-
-### history-db.js (历史管理) - ~200+ 行
-- **数据存储** - Chrome Storage 的 CRUD 操作
-- **URL 规范化** - 确保 URL 一致性和比较准确性
-- **搜索过滤** - 基于关键词搜索历史记录
-- **数据导入导出** - 支持备份和恢复
-
-### panel.css (样式系统) - ~800+ 行
-- **响应式布局** - Flexbox 布局适应多种屏幕尺寸
-- **暗色主题支持** - 完整的暗色和亮色主题
-- **动画效果** - 平滑的过渡和交互反馈
-- **无障碍设计** - 高对比度、清晰字体
-
-## 🎯 关键功能详解
-
-### 1. 底部导航栏系统
-```
-特点：
-- 所有提供商图标固定显示
-- 当前选中图标高亮显示
-- 悬停时显示提供商名称
-- 支持横向滚动（提供商众多时）
-- 完全可折叠以节省空间
-- 支持拖拽重新排序
-```
-
-### 2. Tab 键提供商切换
-```
-工作流程：
-1. 用户在 iframe 内容中按 Tab 键
-2. 内容脚本拦截该事件（不让其传递给 iframe）
-3. 向主窗口发送 'ai-tab-cycle' 消息
-4. 主窗口获取下一个提供商并切换
-5. 调用 ensureFrame() 加载新提供商内容
-```
-
-### 3. URL 同步机制
-```
-实时追踪流程：
-1. 内容脚本定期检查 iframe 内的 location.href
-2. 检测到变化时向主窗口发送 'ai-url-changed' 消息
-3. 主窗口更新 Open in Tab 链接
-4. 历史记录数据库记录新 URL
-5. 支持复制、重命名等操作
-```
-
-### 4. 会话认证系统
-```
-认证流程：
-1. 获取提供商配置中的 authCheck 方法
-2. 执行认证检查（如 ChatGPT 的 session 检查）
-3. 如果未授权，显示登录提示信息
-4. 用户点击 "Open in Tab" 在新标签页登录
-5. 返回侧边栏，重新加载提供商内容
-```
-
-### 5. 历史记录系统
-- **自动追踪** - 访问的每个 URL 自动记录
-- **去重处理** - 相同 URL 不重复记录
-- **搜索功能** - 按关键词快速查找历史
-- **快速操作** - 复制链接、重命名、删除
-- **批量管理** - 支持清空所有历史
-
-## 🚀 安装与使用
-
-### 本地安装
 ```bash
-# 1. 克隆项目
-git clone https://github.com/yourusername/AI-Sidebar.git
-cd AI-Sidebar
+npm install
+```
 
-# 2. 安装依赖（如有）
+### 2. 运行应用
+
+```bash
+# 开发模式（带开发者工具）
+npm run dev
+
+# 正常模式
+npm start
+```
+
+### 3. 使用快捷键
+
+按 **Option + Space** (Mac) 或 **Alt + Space** (Windows/Linux) 呼出/隐藏侧边栏
+
+## 功能特性
+
+✅ **已实现**
+- 从右侧滑入/滑出动画
+- 全局快捷键：Option + Space
+- 支持多个 AI 提供商（ChatGPT, Claude, Gemini 等）
+- 本地存储支持
+- 始终置顶窗口
+- 分屏右侧地址栏支持“锁定 Tab 到右侧”（Lock ▶︎ 按钮）
+
+🚧 **待完善**
+- 窗口大小记忆
+- 自定义快捷键
+- 自动启动
+- 系统托盘图标
+
+## 开发说明
+
+### 项目结构
+
+```
+.
+├── electron-main.js       # Electron 主进程
+├── electron-preload.js    # 预加载脚本
+├── electron-adapter.js    # Chrome API 适配器
+├── index.html             # 主界面
+├── js/
+│   ├── popup.js          # 主逻辑
+│   ├── history-db.js     # 历史记录
+│   └── utils.js          # 工具函数
+└── css/
+    └── panel.css         # 样式
+
+```
+
+### 关键技术点
+
+1. **窗口动画**：使用定时器实现平滑的滑入/滑出效果
+2. **API 适配**：通过 electron-adapter.js 将 Chrome 插件 API 映射到 localStorage
+3. **全局快捷键**：使用 Electron 的 globalShortcut API
+
+### 使用技巧：锁定 Tab 到右侧
+- 在分屏模式下，地址栏内有一个 “Lock ▶︎” 按钮。
+- 点击开启后，Tab/Shift+Tab 将始终只在右侧循环切换（无论当前焦点在哪里）。
+- 再次点击可解除锁定；状态在本地记忆（重启后自动恢复）。
+
+## 故障排除
+
+### 快捷键不工作？
+- 确保没有其他应用占用 Option + Space
+- 检查系统"安全性与隐私"设置，给予应用辅助功能权限
+
+### 窗口显示异常？
+- 尝试重启应用
+- 检查开发者控制台是否有错误信息（npm run dev）
+
+### 加载外部站点出现 SSL/TLS 错误（ERR_CONNECTION_CLOSED / 握手失败）？
+- 现象：控制台看到类似日志
+  - `handshake failed; returned -1, SSL error code 1, net_error -100`
+  - `Failed to load URL: https://gemini.google.com/app with error: ERR_CONNECTION_CLOSED`
+- 常见原因：某些网络/公司代理/安全网关对最新版的 TLS 特性（如 ECH、HTTPS SVCB 记录、TLS1.3）兼容不佳，或对 Electron/Chromium 的网络栈处理存在差异。
+- 解决建议（按需启用，默认关闭）：
+  1) 启用网络兼容模式（禁用 ECH/SVCB/QUIC 且将最小 TLS 版本设为 1.2）
+     - macOS/Linux:
+       - `AISB_NET_COMPAT=1 npm run dev`
+       - 或 `AISB_NET_COMPAT=1 npm start`
+  2) 仅禁用 ECH/SVCB：
+       - `AISB_DISABLE_ECH=1 npm run dev`
+  3) 记录 Chromium 网络日志，便于排查：
+       - `AISB_NETLOG=/tmp/netlog.json npm run dev`
+  4) 临时忽略证书错误（仅调试使用，勿在生产环境）：
+       - `AISB_IGNORE_CERT_ERRORS=1 npm run dev`
+
+提示：如果在 Chrome/Edge 中可正常访问，而在本应用中报上述错误，通常是网络设备/代理对 Electron 的新 TLS/DNS 特性兼容性问题。启用第 1 条“网络兼容模式”最常见可解。
+
+## 打包与发布
+
+### 快速打包
+
+项目已配置好 `electron-builder`，支持一键打包：
+
+```bash
+# 1. 安装依赖（如果还没安装）
 npm install
 
-# 3. 在 Chrome 中加载
-# 打开 chrome://extensions/
-# 启用 "开发者模式"
-# 点击 "加载未封装的扩展程序"
-# 选择项目目录
+# 2. 快速验证（生成未打包的应用目录，不生成安装器）
+npm run pack
+
+# 3. 生成安装包/可执行文件
+npm run dist
 ```
 
-### 基本使用
-1. **点击提供商图标** - 在底部导航栏中选择 AI 提供商
-2. **按 Tab 键** - 快速循环切换提供商
-3. **点击 "Open in Tab"** - 在新标签页中打开当前对话
-4. **拖拽图标** - 按偏好重新排列提供商顺序
-5. **点击折叠按钮** - 隐藏/显示导航栏
+### 打包输出
 
-## ⚙️ 权限说明
+#### macOS
+- **DMG 安装包**：`dist/AI Sidebar-*.dmg`
+- **ZIP 压缩包**：`dist/AI Sidebar-*.zip`
+- **未打包目录**：`dist/mac-arm64/AI Sidebar.app`
 
-| 权限 | 用途 |
-|------|------|
-| `sidePanel` | 向侧边栏添加内容 |
-| `tabs` | 查询和更新标签页 |
-| `storage` | 保存用户偏好设置 |
-| `cookies` | 访问认证 Cookie |
-| `identity` | 处理认证流 |
-| `scripting` | 动态脚本注入 |
-| `declarativeNetRequest` | 修改请求头以绕过 CSP/X-Frame-Options |
-| `declarativeNetRequestWithHostAccess` | 提升版请求头修改 |
+#### Windows
+- **NSIS 安装包**：`dist/AI Sidebar Setup *.exe`
+- **未打包目录**：`dist/win-unpacked/`
 
-## 🔍 故障排除
+#### Linux
+- **AppImage**：`dist/AI Sidebar-*.AppImage`
+- **未打包目录**：`dist/linux-unpacked/`
+
+### 打包配置说明
+
+打包配置位于 `package.json` 的 `build` 字段：
+
+- **应用 ID**：`com.example.ai-sidebar`（可自定义）
+- **产品名称**：`AI Sidebar`
+- **分类**：macOS 为 `productivity`，Linux 为 `Utility`
+- **图标**：使用 `images/image.png`（1024x1024）
+- **文件包含**：仅包含运行所需文件（html/js/css/images/vendor 等）
+- **压缩**：已启用 `asar` 减小体积
+
+### macOS 权限说明
+
+#### 屏幕录制权限（截屏功能）
+首次使用截屏功能时，系统会要求授予"屏幕录制"权限：
+1. 系统设置 → 隐私与安全性 → 屏幕录制
+2. 勾选你的应用
+3. 重启应用
+
+#### 辅助功能权限（文字选择功能，可选）
+若希望"选中文字自动复制"功能更完善，需要"辅助功能"权限：
+1. 系统设置 → 隐私与安全性 → 辅助功能
+2. 勾选你的应用
+
+### 代码签名与公证（可选）
+
+#### 本地自用
+- 无需签名，直接使用打包的应用即可
+- macOS 首次打开可能提示"无法验证开发者"，在"系统设置 → 隐私与安全性"中点击"仍要打开"
+
+#### 分发给他人
+建议进行代码签名和公证，避免用户看到安全警告：
+
+1. **获取开发者证书**：
+   - 注册 Apple Developer 账号（$99/年）
+   - 在 Xcode 或 Apple Developer 网站创建证书
+
+2. **配置签名**：
+   在 `package.json` 的 `build.mac` 中添加：
+   ```json
+   "mac": {
+     "identity": "Developer ID Application: Your Name (TEAM_ID)"
+   }
+   ```
+
+3. **启用公证**（可选）：
+   ```json
+   "afterSign": "scripts/notarize.js"
+   ```
+   需要配置 Apple ID 和 App-Specific Password
 
 ### 常见问题
 
-**1. 提供商加载失败**
-- 清空浏览器缓存
-- 在 Chrome 中重新加载扩展
-- 确保网络连接正常
+#### 图标问题
+- 当前使用 `images/image.png`（1024x1024）
+- 如需更清晰的图标，可替换为 `.icns`（macOS）或 `.ico`（Windows）
+- 图标文件需至少 512x512 像素
 
-**2. 登录页面在侧边栏中无法加载**
-- 某些提供商（尤其是 Gemini/Google）可能因 iframe 安全限制无法加载登录页
-- **解决方案**: 点击 "Open in Tab" 在新标签页中登录
-- 登录完成后，侧边栏应能正常加载
+#### 打包体积
+- 首次打包会较大（包含 Electron 运行时）
+- 已启用 `asar` 压缩减小体积
+- 可通过排除不必要的文件进一步优化
 
-**3. ChatGPT 显示 403 错误**
-- OpenAI 可能针对侧边栏请求进行了特殊检查
-- **解决方案**: 先在普通标签页中打开 ChatGPT 通过初始检查
-- 之后侧边栏应该可以正常访问
+#### 构建错误
+- **macOS**：确保安装了 Xcode Command Line Tools
+  ```bash
+  xcode-select --install
+  ```
+- **Windows**：需要允许 PowerShell 脚本执行
+- **Linux**：确保安装了必要的构建工具
 
-**4. Tab 键不工作**
-- 确保侧边栏处于焦点状态
-- 如果某些网站的 iframe 拦截了 Tab 键，这可能是预期行为
-- 尝试在侧边栏空白区域点击后再按 Tab 键
+### 测试打包结果
 
-**5. 历史记录不显示**
-- 检查 Chrome Storage 权限是否已授予
-- 清除浏览器数据后可能会重置历史记录
-- 在隐私/无痕模式下运行可能不会记录历史
+```bash
+# macOS
+open dist/mac-arm64/AI\ Sidebar.app
 
-## 📝 最近更新 (2025年10月)
+# 或直接运行 DMG
+open dist/AI\ Sidebar-*.dmg
+```
 
-### v0.0.1 重要更新
-- ✅ **底部导航栏重设计** - 从顶部下拉菜单改为底部固定图标导航
-- ✅ **提供商图标系统** - 添加彩色图标和暗色主题支持
-- ✅ **Tab 键快捷切换** - 使用 Tab/Shift+Tab 循环切换提供商
-- ✅ **拖拽排序功能** - 自定义提供商顺序并持久化保存
-- ✅ **历史记录系统** - 追踪最近访问的对话链接
-- ✅ **URL 实时同步** - iframe 内容 URL 变化自动更新
-- ✅ **完整的认证系统** - 支持多种认证流程
-- ✅ **生产力工具集成** - 集成 Attention Tracker 和统计分析
+## 下一步计划
 
-### 前期更新亮点
-- 请求头修改系统（DNR）
-- iframe 沙箱隔离
-- 多提供商支持
-- 会话状态检查
-- 跨域通信桥接
-
-## 🤝 贡献
-
-欢迎提交 Issue 和 Pull Request！
-
-## 📄 许可证
-
-本项目采用 MIT 许可证。详见 [LICENSE](LICENSE) 文件。
-
-## 🙋 常见问题
-
-**Q: 数据会被发送到服务器吗？**
-A: 不会。除了生产力工具（Attention Tracker）需要 Supabase 同步外，其他所有数据都存储在本地浏览器中。
-
-**Q: 可以添加自己的 AI 提供商吗？**
-A: 可以！在 popup.js 中的 PROVIDERS 对象添加新配置即可。
-
-**Q: 支持 Firefox 或其他浏览器吗？**
-A: 目前仅支持 Chrome。未来可能支持其他 Chromium 浏览器。
-
-**Q: 如何联系开发者？**
-A: 欢迎通过 GitHub Issues 或 GitHub Discussions 与我们联系。
-
----
-
-<div align="center">
-  
-  **⭐ 如果这个项目对你有帮助，请不要忘记给个 Star!**
-  
-  Made with ❤️ for AI enthusiasts
-  
-</div>
+1. ✅ 基础原型（窗口 + 快捷键）
+2. ✅ 适配现有功能
+3. ✅ 截屏和文字选择功能
+4. ✅ 打包发布配置
+5. ✅ 添加系统托盘
+6. ⏳ 自动更新功能
+7. ⏳ 代码签名和公证
