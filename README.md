@@ -1,4 +1,4 @@
-# AI Sidebar - 桌面端 AI 工作台 🤖
+# AI Sidebar - 桌面端 AI 工作台
 
 <div align="center">
   <img src="images/icon128.png" alt="AI Sidebar Logo" width="128">
