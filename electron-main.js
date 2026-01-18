@@ -171,6 +171,31 @@ const GEMINI_TITLE_SCRIPT = `(function () {
   }
 })();`;
 
+
+// Load URL Sync Script
+let URL_SYNC_SCRIPT = '';
+try {
+  URL_SYNC_SCRIPT = fs.readFileSync(path.join(__dirname, 'content-scripts', 'url-sync.js'), 'utf-8');
+} catch (e) {
+  console.error('Failed to load url-sync script:', e);
+}
+
+// IPC Bridge for BrowserView <-> Renderer
+ipcMain.on('aisb-bridge', (event, payload) => {
+  // Forward to main window renderer
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('aisb-bridge-forward', payload);
+  }
+});
+
+ipcMain.on('aisb-bridge-to-view', (event, { providerKey, payload }) => {
+  // Forward to specific BrowserView
+  const view = browserViews[providerKey];
+  if (view && !view.webContents.isDestroyed()) {
+    view.webContents.send('aisb-bridge-message', payload);
+  }
+});
+
 // ============== 网络兼容性选项（可选） ==============
 // 某些网络/代理设备（尤其是不支持 ECH/HTTPS SVCB 或对 TLS1.3 有兼容性问题的环境）
 // 可能导致特定站点（如 gemini.google.com）在 Electron/Chromium 中握手失败（ERR_CONNECTION_CLOSED/-100）。
@@ -543,13 +568,13 @@ function attachBrowserView() {
 
 // AI 提供商配置
 const PROVIDERS = {
-  chatgpt: { url: 'https://chatgpt.com', partition: 'persist:chatgpt' },
+  chatgpt: { url: 'https://chatgpt.com', partition: 'persist:chatgpt', capability: { timeline: true } },
   codex: { url: 'https://chatgpt.com/codex', partition: 'persist:chatgpt' },
-  claude: { url: 'https://claude.ai', partition: 'persist:claude' },
-  gemini: { url: 'https://gemini.google.com/app', partition: 'persist:gemini' },
+  claude: { url: 'https://claude.ai', partition: 'persist:claude', capability: { timeline: true } },
+  gemini: { url: 'https://gemini.google.com/app', partition: 'persist:gemini', capability: { timeline: true } },
   perplexity: { url: 'https://www.perplexity.ai', partition: 'persist:perplexity' },
   genspark: { url: 'https://www.genspark.ai/agents?type=moa_chat', partition: 'persist:genspark' },
-  deepseek: { url: 'https://chat.deepseek.com', partition: 'persist:deepseek' },
+  deepseek: { url: 'https://chat.deepseek.com', partition: 'persist:deepseek', capability: { timeline: true } },
   grok: { url: 'https://grok.com', partition: 'persist:grok' },
   google: { url: 'https://www.google.com/search?udm=50&aep=46&source=25q2-US-SearchSites-Site-CTA', partition: 'persist:google' },
   aistudio: { url: 'https://aistudio.google.com/apps', partition: 'persist:aistudio' },
@@ -847,6 +872,7 @@ function getOrCreateBrowserView(providerKey) {
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
+      preload: path.join(__dirname, 'browserview-preload.js'),
       // 允许必要的权限
       enableRemoteModule: false,
     }
@@ -920,6 +946,10 @@ function getOrCreateBrowserView(providerKey) {
     console.log(`BrowserView loaded: ${providerKey} - ${provider.url}`);
     // 加载完成后也发送一次 URL
     emitProviderUrlChanged();
+    // Inject URL Sync (prompt + in-chat timeline) only if provider has capability
+    if (URL_SYNC_SCRIPT && provider.capability && provider.capability.timeline) {
+      view.webContents.executeJavaScript(URL_SYNC_SCRIPT).catch(e => console.error(`[URL-Sync] Failed to inject for ${providerKey}:`, e));
+    }
     // 链接拦截主要通过 will-navigate 事件处理，这里不需要注入脚本
   });
 
@@ -3046,6 +3076,39 @@ ipcMain.handle('auto-launch-set', async (event, payload) => {
 
     const settings = app.getLoginItemSettings();
     return { ok: true, platform: process.platform, isPackaged: app.isPackaged, settings };
+  } catch (e) {
+    return { ok: false, error: String(e) };
+  }
+});
+
+// Prompt TXT import/export
+ipcMain.handle('save-prompts-txt', async (event, payload) => {
+  if (!mainWindow) return { ok: false, error: 'no-window' };
+  try {
+    const content = String((payload && payload.content) || '');
+    const result = await dialog.showSaveDialog(mainWindow, {
+      title: 'Export Prompts',
+      defaultPath: 'prompts.txt',
+      filters: [{ name: 'TXT', extensions: ['txt'] }]
+    });
+    if (result.canceled || !result.filePath) return { ok: false, canceled: true };
+    fs.writeFileSync(result.filePath, content, 'utf-8');
+    return { ok: true, path: result.filePath };
+  } catch (e) {
+    return { ok: false, error: String(e) };
+  }
+});
+
+ipcMain.handle('open-prompts-txt', async () => {
+  if (!mainWindow) return { ok: false, error: 'no-window' };
+  try {
+    const result = await dialog.showOpenDialog(mainWindow, {
+      properties: ['openFile'],
+      filters: [{ name: 'TXT', extensions: ['txt'] }]
+    });
+    if (result.canceled || !result.filePaths || result.filePaths.length === 0) return { ok: false, canceled: true };
+    const content = fs.readFileSync(result.filePaths[0], 'utf-8');
+    return { ok: true, content, path: result.filePaths[0] };
   } catch (e) {
     return { ok: false, error: String(e) };
   }

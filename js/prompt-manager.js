@@ -360,60 +360,78 @@
       toExport = toExport.filter(p => p.category === currentMode);
     }
     
-    const lines = [];
-    toExport.forEach(p => {
-      lines.push(p.title || 'Untitled');
-      lines.push(p.content);
-      lines.push(''); // blank line separator
+    // Sort by recent
+    toExport.sort((a,b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+
+    const parts = toExport.map(p => {
+      const title = (p.title || 'Untitled').replace(/[\r\n]+/g, ' ').trim();
+      const content = (p.content || '').trim();
+      return `${title}\n${content}`;
     });
     
-    const text = lines.join('\n');
+    const text = parts.join('\n\n');
     
     try {
-      await navigator.clipboard.writeText(text);
-      alert(`Exported ${toExport.length} prompts to clipboard!`);
+      if (window.electronAPI?.savePromptsTxt) {
+        // Pass string directly; preload wraps it in { content }
+        const res = await window.electronAPI.savePromptsTxt(text);
+        if (!res || res.canceled || res.ok === false) return;
+        alert(`Exported ${toExport.length} prompts to TXT.`);
+      } else {
+        await navigator.clipboard.writeText(text);
+        alert(`Exported ${toExport.length} prompts to clipboard!`);
+      }
     } catch (err) {
       console.error('Export failed:', err);
-      alert('Failed to copy to clipboard');
+      alert('Failed to export prompts');
     }
   }
-  
+
   async function importPromptsFromClipboard() {
     try {
-      const text = await navigator.clipboard.readText();
-      if (!text.trim()) return alert('Clipboard is empty');
+      let text = '';
+      if (window.electronAPI?.openPromptsTxt) {
+        const res = await window.electronAPI.openPromptsTxt();
+        if (!res || res.canceled || res.ok === false) return;
+        text = String(res.content || '');
+      } else {
+        text = await navigator.clipboard.readText();
+      }
       
-      // Split by double newline to separate blocks
-      // "Title\nContent..."
-      // blocks separated by blank lines
+      if (!text.trim()) return alert('TXT is empty');
       
-      // Normalize newlines
-      const raw = text.replace(/\r\n/g, '\n');
-      const blocks = raw.split(/\n\s*\n/);
+      // Normalize CRLF to LF
+      const raw = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+      
+      // Split by one or more blank lines (2+ newlines)
+      const blocks = raw.split(/\n\s*\n+/);
       
       const newPrompts = [];
       const timestamp = Date.now();
       
       blocks.forEach(block => {
-        const lines = block.trim().split('\n');
-        if (lines.length < 2) return; // Need at least title and content? Or just content?
-        // Requirement said: "Title(1)\nPrompts(1)"
-        // If only one line, treat as content? Or title=Untitled?
-        // Let's assume line 1 is title.
+        const cleanBlock = block.trim();
+        if (!cleanBlock) return;
+        
+        const lines = cleanBlock.split('\n');
+        if (lines.length < 1) return;
         
         const title = lines[0].trim();
+        // Content is the rest
         const content = lines.slice(1).join('\n').trim();
         
         if (title && content) {
           newPrompts.push({
             title,
             content,
-            category: (currentMode === 'All') ? 'General' : currentMode
+            category: (currentMode === 'All') ? 'General' : currentMode,
+            createdAt: timestamp,
+            updatedAt: timestamp
           });
         }
       });
       
-      if (newPrompts.length === 0) return alert('No valid format found.\nFormat:\nTitle\nContent\n\nTitle\nContent');
+      if (newPrompts.length === 0) return alert('No valid prompts found.\nFormat:\nTitle\nContent\n\nTitle\nContent');
       
       await window.PromptDB.bulkAdd(newPrompts);
       await loadPrompts();
@@ -422,7 +440,7 @@
       
     } catch (err) {
       console.error('Import failed:', err);
-      alert('Failed to read clipboard');
+      alert('Failed to import prompts');
     }
   }
 

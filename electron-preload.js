@@ -495,14 +495,35 @@ contextBridge.exposeInMainWorld('electronAPI', {
       try { callback(payload); } catch (_) {}
     });
   },
+  sendBridgeMessageToView: (providerKey, payload) => {
+    try { ipcRenderer.send('aisb-bridge-to-view', { providerKey, payload }); } catch (_) {}
+  },
   
-  // Prompt Manager
+    // Prompt TXT import/export
+  savePromptsTxt: (content) => ipcRenderer.invoke('save-prompts-txt', { content }),
+  openPromptsTxt: () => ipcRenderer.invoke('open-prompts-txt'),
+
+// Prompt Manager
   insertText: (text) => {
     try { ipcRenderer.send('insert-text', text); } catch (_) {}
   },
   onOpenPromptManager: (callback) => {
     ipcRenderer.on('open-prompt-manager', (event, payload) => { try { callback(payload); } catch (_) {} });
   },
+});
+
+// Expose __AISB_BRIDGE for renderer (mirroring BrowserView bridge for consistency)
+contextBridge.exposeInMainWorld('__AISB_BRIDGE', {
+  onMessage: (callback) => {
+    ipcRenderer.on('aisb-bridge-forward', (event, payload) => {
+      try { callback(payload); } catch (_) {}
+    });
+  },
+  send: (payload) => {
+    // Note: Renderer usually uses electronAPI.sendBridgeMessageToView to target specific providers.
+    // This generic send loops back to main's aisb-bridge handler (which forwards to renderer).
+    try { ipcRenderer.send('aisb-bridge', payload); } catch (_) {}
+  }
 });
 
 // 日志
