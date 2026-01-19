@@ -1,17 +1,22 @@
 /* Prompt Manager Panel */
 .prompt-manager-overlay {
   position: fixed;
-  top: 50px;
+  top: 56px; /* Match toolbar height */
+  bottom: 0;
   right: 0;
   width: 350px;
-  height: calc(100% - 50px);
   background: var(--panel-bg, #ffffff);
   border-left: 1px solid var(--border-color, #e0e0e0);
-  box-shadow: -2px 0 5px rgba(0,0,0,0.1);
-  z-index: 900;
+  box-shadow: -2px 0 8px rgba(0,0,0,0.1);
+  z-index: 50; /* Above regular content but below modals */
   display: flex;
   flex-direction: column;
-  transition: transform 0.3s ease;
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  transform: translateX(100%); /* Hidden by default */
+}
+
+.prompt-manager-overlay.active {
+  transform: translateX(0);
 }
 
 .prompt-header {

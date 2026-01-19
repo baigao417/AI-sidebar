@@ -58,8 +58,7 @@ const PROVIDERS = {
     icon: 'images/providers/chatgpt.svg',
     baseUrl: 'https://chatgpt.com',
     iframeUrl: 'https://chatgpt.com/chat',
-    authCheck: () => AuthCheckers.chatgptAuth(),
-    capability: { timeline: true }
+    authCheck: () => AuthCheckers.chatgptAuth()
   },
   codex: {
     label: 'ChatGPT Codex',
@@ -101,8 +100,7 @@ const PROVIDERS = {
     icon: 'images/providers/gemini.png',
     baseUrl: 'https://gemini.google.com',
     iframeUrl: 'https://gemini.google.com/app',
-    authCheck: null, // render directly; login handled by site
-    capability: { timeline: true }
+    authCheck: null // render directly; login handled by site
   },
   google: {
     label: 'Google',
@@ -124,16 +122,14 @@ const PROVIDERS = {
     icon: 'images/providers/claude.png',
     baseUrl: 'https://claude.ai',
     iframeUrl: 'https://claude.ai',
-    authCheck: null,
-    capability: { timeline: true }
+    authCheck: null
   },
   deepseek: {
     label: 'DeepSeek',
     icon: 'images/providers/deepseek.png',
     baseUrl: 'https://chat.deepseek.com',
     iframeUrl: 'https://chat.deepseek.com/',
-    authCheck: null,
-    capability: { timeline: true }
+    authCheck: null
   },
   grok: {
     label: 'Grok',
@@ -2659,12 +2655,23 @@ const initializeBar = async () => {
   // overlay 模式无需处理窗口尺寸推挤
   } catch (_) {}
 
-  // Prompt button handler
+  // Prompt Manager button handler
   try {
-    const pBtn = document.getElementById('promptBtn');
-    if (pBtn) {
-      pBtn.addEventListener('click', () => {
-        try { if (window.PromptManager) window.PromptManager.toggle(); } catch (_) {}
+    const promptBtn = document.getElementById('promptBtn');
+    if (promptBtn) {
+      promptBtn.addEventListener('click', () => {
+        if (window.PromptManager) {
+          window.PromptManager.toggle();
+        }
+      });
+    }
+    
+    // Listen for IPC from main process to open prompt manager
+    if (IS_ELECTRON && window.electronAPI?.onOpenPromptManager) {
+      window.electronAPI.onOpenPromptManager(() => {
+        if (window.PromptManager) {
+          window.PromptManager.open();
+        }
       });
     }
   } catch (_) {}
@@ -2843,6 +2850,13 @@ const initializeBar = async () => {
         const modal = document.getElementById('settingsModal');
         if (!modal) return;
         
+        // Safety check: if already open, don't call enterOverlay again
+        const alreadyOpen = modal.classList.contains('active');
+        if (alreadyOpen) {
+          console.log('[Settings] Already open, ignoring click');
+          return;
+        }
+        
         const starShortcut = await getStarShortcut();
         const buttonShortcuts = await getButtonShortcuts();
         
@@ -2983,18 +2997,39 @@ const initializeBar = async () => {
         // Use overlay mode to temporarily detach BrowserViews so Settings can be seen.
         try { if (IS_ELECTRON && window.electronAPI?.enterOverlay) window.electronAPI.enterOverlay(); } catch (_) {}
 
-        modal.style.display = 'flex';
+        // Use 'active' class for slide-in animation (like history panel)
+        modal.classList.add('active');
 
         const closeBtn = modal.querySelector('.settings-close-btn');
+        // Backdrop is hidden in slide-out design, but keep variable for compatibility
         const backdrop = modal.querySelector('.settings-modal-backdrop');
 
         let __settingsClosed = false;
         function closeModal() {
           if (__settingsClosed) return;
           __settingsClosed = true;
-          modal.style.display = 'none';
+          // Use 'active' class for slide-out animation
+          modal.classList.remove('active');
           try { document.removeEventListener('keydown', onEsc, true); } catch (_) {}
-          try { if (IS_ELECTRON && window.electronAPI?.exitOverlay) window.electronAPI.exitOverlay(); } catch (_) {}
+          
+          // Check if any other overlay panels are still open
+          const promptOpen = document.getElementById('promptManagerPanel')?.classList.contains('active');
+          const favoritesOpen = document.getElementById('favoritesPanel')?.classList.contains('active');
+          const anyOtherPanelOpen = promptOpen || favoritesOpen;
+          
+          try {
+            if (IS_ELECTRON && window.electronAPI) {
+              if (!anyOtherPanelOpen && window.electronAPI.resetOverlay) {
+                // No other panels open - use reset to ensure clean state
+                console.log('[Settings] Calling resetOverlay() (no other panels open)');
+                window.electronAPI.resetOverlay();
+              } else if (window.electronAPI.exitOverlay) {
+                // Other panels still open - use normal exit
+                console.log('[Settings] Calling exitOverlay()');
+                window.electronAPI.exitOverlay();
+              }
+            }
+          } catch (_) {}
         }
         function onEsc(e) {
           if (!e || e.key !== 'Escape') return;
@@ -4366,41 +4401,7 @@ if (IS_ELECTRON && window.electronAPI && window.electronAPI.onCycleProvider) {
   handlePendingFromStorage();
 })();
 
-  // Bridge messages from BrowserViews
-  try {
-    if (IS_ELECTRON && window.electronAPI?.onBridgeMessage) {
-      window.electronAPI.onBridgeMessage((payload) => {
-        if (!payload || !payload.type) return;
-        if (payload.type === 'trigger-prompt-manager') {
-          try { window.PromptManager?.open(); } catch (_) {}
-          return;
-        }
-        if (payload.type === 'timeline-update') {
-          try { window.__AISB_BRIDGE?.send(payload); } catch (_) {}
-          return;
-        }
-      });
-    }
-  } catch (_) {}
-
 // ============== 搜索功能 ==============
-  // Bridge messages from BrowserViews
-  try {
-    if (IS_ELECTRON && window.electronAPI?.onBridgeMessage) {
-      window.electronAPI.onBridgeMessage((payload) => {
-        if (!payload || !payload.type) return;
-        if (payload.type === 'trigger-prompt-manager') {
-          try { window.PromptManager?.open(); } catch (_) {}
-          return;
-        }
-        if (payload.type === 'timeline-update') {
-          try { window.__AISB_BRIDGE?.send(payload); } catch (_) {}
-          return;
-        }
-      });
-    }
-  } catch (_) {}
-
 // ============== 搜索功能（现在使用浮动子窗口，由主进程管理）==============
 (function initializeSearchBtn() {
   const searchBtn = document.getElementById('searchBtn');

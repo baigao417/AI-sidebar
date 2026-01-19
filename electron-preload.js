@@ -177,6 +177,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // 覆盖模式：临时隐藏 BrowserView，让面板真正浮在上面
   enterOverlay: () => { try { ipcRenderer.send('overlay-enter'); } catch(_){} },
   exitOverlay: () => { try { ipcRenderer.send('overlay-exit'); } catch(_){} },
+  // Safety reset: force depth to 0 and re-attach BrowserView (use when state is corrupted)
+  resetOverlay: () => { try { ipcRenderer.send('overlay-reset'); } catch(_){} },
+
 
   // 全宽切换（非操作系统原生全屏，保持当前 Space）
   toggleFullWidth: () => {
@@ -263,6 +266,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
       callback(status);
     });
   },
+
+  // Auto Launch
+  getAutoLaunch: () => ipcRenderer.invoke('get-auto-launch'),
+  setAutoLaunch: (enabled) => ipcRenderer.invoke('set-auto-launch', enabled),
   
   // Tab 键切换 provider（支持方向）
   onCycleProvider: (callback) => {

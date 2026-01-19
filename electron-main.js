@@ -171,31 +171,6 @@ const GEMINI_TITLE_SCRIPT = `(function () {
   }
 })();`;
 
-
-// Load URL Sync Script
-let URL_SYNC_SCRIPT = '';
-try {
-  URL_SYNC_SCRIPT = fs.readFileSync(path.join(__dirname, 'content-scripts', 'url-sync.js'), 'utf-8');
-} catch (e) {
-  console.error('Failed to load url-sync script:', e);
-}
-
-// IPC Bridge for BrowserView <-> Renderer
-ipcMain.on('aisb-bridge', (event, payload) => {
-  // Forward to main window renderer
-  if (mainWindow && !mainWindow.isDestroyed()) {
-    mainWindow.webContents.send('aisb-bridge-forward', payload);
-  }
-});
-
-ipcMain.on('aisb-bridge-to-view', (event, { providerKey, payload }) => {
-  // Forward to specific BrowserView
-  const view = browserViews[providerKey];
-  if (view && !view.webContents.isDestroyed()) {
-    view.webContents.send('aisb-bridge-message', payload);
-  }
-});
-
 // ============== 网络兼容性选项（可选） ==============
 // 某些网络/代理设备（尤其是不支持 ECH/HTTPS SVCB 或对 TLS1.3 有兼容性问题的环境）
 // 可能导致特定站点（如 gemini.google.com）在 Electron/Chromium 中握手失败（ERR_CONNECTION_CLOSED/-100）。
@@ -511,6 +486,12 @@ let overlayDepth = 0;
 function ensureBrowserViewsAttached(where = 'unspecified') {
   try {
     if (!mainWindow) return;
+    // ⚠️ CRITICAL: Don't re-attach if overlay mode is active (panels are visible)
+    // This prevents resize/focus events from undoing detachBrowserView()
+    if (overlayDepth > 0) {
+      console.log('[EnsureAttach] skipped - overlay active (depth=' + overlayDepth + ') by', where);
+      return;
+    }
     const views = mainWindow.getBrowserViews();
     if ((isEmbeddedBrowserActive && embeddedBrowserView && previousBrowserView) || (isThreeScreenMode && thirdBrowserView)) {
       const needLeft = previousBrowserView && !views.includes(previousBrowserView);
@@ -568,13 +549,13 @@ function attachBrowserView() {
 
 // AI 提供商配置
 const PROVIDERS = {
-  chatgpt: { url: 'https://chatgpt.com', partition: 'persist:chatgpt', capability: { timeline: true } },
+  chatgpt: { url: 'https://chatgpt.com', partition: 'persist:chatgpt' },
   codex: { url: 'https://chatgpt.com/codex', partition: 'persist:chatgpt' },
-  claude: { url: 'https://claude.ai', partition: 'persist:claude', capability: { timeline: true } },
-  gemini: { url: 'https://gemini.google.com/app', partition: 'persist:gemini', capability: { timeline: true } },
+  claude: { url: 'https://claude.ai', partition: 'persist:claude' },
+  gemini: { url: 'https://gemini.google.com/app', partition: 'persist:gemini' },
   perplexity: { url: 'https://www.perplexity.ai', partition: 'persist:perplexity' },
   genspark: { url: 'https://www.genspark.ai/agents?type=moa_chat', partition: 'persist:genspark' },
-  deepseek: { url: 'https://chat.deepseek.com', partition: 'persist:deepseek', capability: { timeline: true } },
+  deepseek: { url: 'https://chat.deepseek.com', partition: 'persist:deepseek' },
   grok: { url: 'https://grok.com', partition: 'persist:grok' },
   google: { url: 'https://www.google.com/search?udm=50&aep=46&source=25q2-US-SearchSites-Site-CTA', partition: 'persist:google' },
   aistudio: { url: 'https://aistudio.google.com/apps', partition: 'persist:aistudio' },
@@ -869,10 +850,10 @@ function getOrCreateBrowserView(providerKey) {
   const view = new BrowserView({
     webPreferences: {
       partition: provider.partition,
+      preload: path.join(__dirname, 'browserview-preload.js'), // 关键：注入 __AISB_BRIDGE
       contextIsolation: true,
       nodeIntegration: false,
-      sandbox: true,
-      preload: path.join(__dirname, 'browserview-preload.js'),
+      sandbox: false, // 需要关闭 sandbox 才能使用 preload
       // 允许必要的权限
       enableRemoteModule: false,
     }
@@ -926,9 +907,26 @@ function getOrCreateBrowserView(providerKey) {
   view.webContents.loadURL(provider.url);
 
   // 监听 URL / 标题变化，同步到渲染进程
+  // Helper: 注入 content script
+  const injectContentScript = () => {
+    try {
+      const contentScriptPath = path.join(__dirname, 'content-scripts', 'url-sync.js');
+      const contentScript = fs.readFileSync(contentScriptPath, 'utf8');
+      view.webContents.executeJavaScript(contentScript).then(() => {
+        console.log(`[Content Script] Injected into ${providerKey}`);
+      }).catch((err) => {
+        console.error(`[Content Script] Failed to inject into ${providerKey}:`, err);
+      });
+    } catch (e) {
+      console.error(`[Content Script] Error reading script for ${providerKey}:`, e);
+    }
+  };
+
   view.webContents.on('did-navigate', (event, url) => {
     console.log(`BrowserView navigated: ${providerKey} - ${url}`);
     emitProviderUrlChanged();
+    // 页面导航后重新注入 content script
+    injectContentScript();
   });
 
   view.webContents.on('did-navigate-in-page', (event, url) => {
@@ -944,13 +942,8 @@ function getOrCreateBrowserView(providerKey) {
   // 调试日志
   view.webContents.on('did-finish-load', () => {
     console.log(`BrowserView loaded: ${providerKey} - ${provider.url}`);
-    // 加载完成后也发送一次 URL
     emitProviderUrlChanged();
-    // Inject URL Sync (prompt + in-chat timeline) only if provider has capability
-    if (URL_SYNC_SCRIPT && provider.capability && provider.capability.timeline) {
-      view.webContents.executeJavaScript(URL_SYNC_SCRIPT).catch(e => console.error(`[URL-Sync] Failed to inject for ${providerKey}:`, e));
-    }
-    // 链接拦截主要通过 will-navigate 事件处理，这里不需要注入脚本
+    injectContentScript();
   });
 
   // 页面内搜索结果回调
@@ -2356,6 +2349,18 @@ ipcMain.on('overlay-exit', () => {
   }
 });
 
+// Safety mechanism: force reset overlay depth and re-attach BrowserView
+// Use this when all panels are confirmed closed but BrowserView is still detached
+ipcMain.on('overlay-reset', () => {
+  const prev = overlayDepth;
+  if (prev > 0) {
+    console.log('[Overlay] RESET forced → depth was ' + prev + ', now 0 (attach BrowserView)');
+    overlayDepth = 0;
+    attachBrowserView();
+    try { mainWindow?.webContents.send('overlay-state', { action: 'reset', depth: 0, prev, ts: Date.now() }); } catch (_) {}
+  }
+});
+
 // ============== 截屏与文字注入（自动送入输入框） ==============
 async function captureScreen() {
   try {
@@ -3081,39 +3086,6 @@ ipcMain.handle('auto-launch-set', async (event, payload) => {
   }
 });
 
-// Prompt TXT import/export
-ipcMain.handle('save-prompts-txt', async (event, payload) => {
-  if (!mainWindow) return { ok: false, error: 'no-window' };
-  try {
-    const content = String((payload && payload.content) || '');
-    const result = await dialog.showSaveDialog(mainWindow, {
-      title: 'Export Prompts',
-      defaultPath: 'prompts.txt',
-      filters: [{ name: 'TXT', extensions: ['txt'] }]
-    });
-    if (result.canceled || !result.filePath) return { ok: false, canceled: true };
-    fs.writeFileSync(result.filePath, content, 'utf-8');
-    return { ok: true, path: result.filePath };
-  } catch (e) {
-    return { ok: false, error: String(e) };
-  }
-});
-
-ipcMain.handle('open-prompts-txt', async () => {
-  if (!mainWindow) return { ok: false, error: 'no-window' };
-  try {
-    const result = await dialog.showOpenDialog(mainWindow, {
-      properties: ['openFile'],
-      filters: [{ name: 'TXT', extensions: ['txt'] }]
-    });
-    if (result.canceled || !result.filePaths || result.filePaths.length === 0) return { ok: false, canceled: true };
-    const content = fs.readFileSync(result.filePaths[0], 'utf-8');
-    return { ok: true, content, path: result.filePaths[0] };
-  } catch (e) {
-    return { ok: false, error: String(e) };
-  }
-});
-
 // Native file dialog for picking icons (works better than <input type="file"> in Electron)
 ipcMain.handle('select-file', async () => {
   if (!mainWindow) return { ok: false, error: 'no-window' };
@@ -3566,6 +3538,43 @@ ipcMain.on('search-bar-stop', () => {
 
 ipcMain.on('search-bar-close', () => {
   hideSearchBar();
+});
+
+// ============== BrowserView Bridge IPC 处理 ==============
+// 处理来自 BrowserView 内容脚本的消息
+ipcMain.on('aisb-bridge', (event, payload) => {
+  try {
+    if (!payload || !payload.type) return;
+    
+    switch (payload.type) {
+      case 'trigger-prompt-manager':
+        // 通知主窗口打开提示词管理器
+        mainWindow?.webContents.send('open-prompt-manager');
+        break;
+      case 'ai-url-changed':
+        // URL 变化，转发给主窗口
+        mainWindow?.webContents.send('ai-url-changed', payload);
+        break;
+      default:
+        // 其他消息转发给主窗口
+        mainWindow?.webContents.send('aisb-bridge-forward', payload);
+    }
+  } catch (e) {
+    console.error('[aisb-bridge] Error:', e);
+  }
+});
+
+// 处理来自主窗口的文本插入请求
+ipcMain.on('insert-text', (event, text) => {
+  try {
+    // 获取当前活动的 BrowserView 并发送消息
+    const activeView = getActiveAiView();
+    if (activeView) {
+      activeView.webContents.send('aisb-bridge-message', { type: 'INSERT_TEXT', text });
+    }
+  } catch (e) {
+    console.error('[insert-text] Error:', e);
+  }
 });
 
 // ============== History 面板 IPC 处理 ==============

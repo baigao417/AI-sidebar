@@ -62,8 +62,8 @@ AI Sidebar 不仅仅是一个浏览器套壳，它是专为**高频 AI 用户**�
 
 ```bash
 # 克隆项目
-git clone https://github.com/yourusername/AI-Sidebar.git
-cd AI-Sidebar
+git clone https://github.com/baigao417/AI-sidebar.git
+cd AI-sidebar
 
 # 安装依赖
 npm install

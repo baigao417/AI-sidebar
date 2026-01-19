@@ -1103,17 +1103,25 @@ body.three-screen-mode #thirdDivider {
   z-index: 1000001; /* 确保按钮本身在最上面 */
 }
 
-/* Keyboard Shortcuts Settings Modal */
+/* Settings Panel (slide-out from right, like history panel) */
 .settings-modal {
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
+  top: 56px; /* Below toolbar */
   bottom: 0;
+  right: 0;
+  width: 380px;
+  background: #ffffff;
+  border-left: 1px solid #e0e0e0;
+  box-shadow: -2px 0 8px rgba(0,0,0,0.1);
+  z-index: 50; /* Above regular content but below modals */
   display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 100010;
+  flex-direction: column;
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  transform: translateX(100%); /* Hidden by default */
+}
+
+.settings-modal.active {
+  transform: translateX(0);
 }
 
 /* Align Modal */
@@ -1239,25 +1247,17 @@ body.three-screen-mode #thirdDivider {
   transform: translateY(1px);
 }
 
+/* Settings panel backdrop - not needed for slide-out panel, but keep for compatibility */
 .settings-modal-backdrop {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.3);
+  display: none; /* Hide backdrop for slide-out panel design */
 }
 
 .settings-modal-content {
-  position: relative;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
   background: #ffffff;
-  border-radius: 12px;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
-  width: 90%;
-  max-width: 400px;
-  max-height: 80vh;
   overflow-y: auto;
-  z-index: 100011;
 }
 
 .settings-header {

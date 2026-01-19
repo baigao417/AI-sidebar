@@ -28,12 +28,23 @@
   // Initialize global API
   window.PromptManager = {
     open: async (initialMode = null) => {
+      // Safety check: if already open, don't call enterOverlay again (prevents depth mismatch)
+      const alreadyOpen = panel.classList.contains('active');
+      
       // 1. Notify Electron to enter overlay mode (detach BrowserView)
-      try {
-        if (window.electronAPI && window.electronAPI.enterOverlay) {
-          window.electronAPI.enterOverlay();
-        }
-      } catch (_) {}
+      // Only call if not already open to prevent overlayDepth mismatch
+      if (!alreadyOpen) {
+        try {
+          if (window.electronAPI && window.electronAPI.enterOverlay) {
+            console.log('[PromptManager] Calling enterOverlay()');
+            window.electronAPI.enterOverlay();
+          } else {
+            console.warn('[PromptManager] electronAPI.enterOverlay not available');
+          }
+        } catch (e) { console.error('[PromptManager] enterOverlay error:', e); }
+      } else {
+        console.log('[PromptManager] Already open, skipping enterOverlay()');
+      }
 
       await loadPrompts();
       if (initialMode && typeof initialMode === 'string') {
@@ -42,25 +53,41 @@
       renderModes();
       updateModeUI();
       renderList();
-      panel.style.display = 'flex';
+      // Use 'active' class for slide-in animation (like history panel)
+      panel.classList.add('active');
       searchInput.focus();
     },
     close: () => {
       // Safety check: if already hidden, don't double-call exitOverlay
-      // (which might cause mismatched depths if logic is fragile)
-      if (panel.style.display === 'none') return;
+      if (!panel.classList.contains('active')) return;
       
-      panel.style.display = 'none';
+      // Use 'active' class for slide-out animation
+      panel.classList.remove('active');
       
       // 2. Notify Electron to exit overlay mode (attach BrowserView)
+      // Check if any other overlay panels are still open
+      const settingsOpen = document.getElementById('settingsModal')?.classList.contains('active');
+      const favoritesOpen = document.getElementById('favoritesPanel')?.classList.contains('active');
+      const anyOtherPanelOpen = settingsOpen || favoritesOpen;
+      
       try {
-        if (window.electronAPI && window.electronAPI.exitOverlay) {
-          window.electronAPI.exitOverlay();
+        if (window.electronAPI) {
+          if (!anyOtherPanelOpen && window.electronAPI.resetOverlay) {
+            // No other panels open - use reset to ensure clean state
+            console.log('[PromptManager] Calling resetOverlay() (no other panels open)');
+            window.electronAPI.resetOverlay();
+          } else if (window.electronAPI.exitOverlay) {
+            // Other panels still open - use normal exit
+            console.log('[PromptManager] Calling exitOverlay()');
+            window.electronAPI.exitOverlay();
+          }
+        } else {
+          console.warn('[PromptManager] electronAPI not available');
         }
-      } catch (_) {}
+      } catch (e) { console.error('[PromptManager] exitOverlay error:', e); }
     },
     toggle: () => {
-      if (panel.style.display === 'none') window.PromptManager.open();
+      if (!panel.classList.contains('active')) window.PromptManager.open();
       else window.PromptManager.close();
     }
   };
@@ -338,7 +365,8 @@
   function insertPrompt(text) {
     if (window.electronAPI && window.electronAPI.insertText) {
       window.electronAPI.insertText(text);
-      // Optional: close panel or flash feedback
+      // Auto-close panel after inserting prompt
+      window.PromptManager.close();
     } else {
         console.log('Mock insert:', text);
     }

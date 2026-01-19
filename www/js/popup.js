@@ -2736,13 +2736,16 @@ const initializeBar = async () => {
           </div>
         `;
         
-        modal.style.display = 'flex';
+        // Use 'active' class for slide-in animation (like history panel)
+        modal.classList.add('active');
         
         const closeBtn = modal.querySelector('.settings-close-btn');
+        // Backdrop is hidden in slide-out design, but keep variable for compatibility
         const backdrop = modal.querySelector('.settings-modal-backdrop');
         
         const closeModal = () => {
-          modal.style.display = 'none';
+          // Use 'active' class for slide-out animation
+          modal.classList.remove('active');
         };
         
         closeBtn.addEventListener('click', closeModal);
